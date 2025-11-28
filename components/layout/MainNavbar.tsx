@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AuthService } from '@/lib/services/auth-service';
@@ -14,9 +14,19 @@ export default function MainNavbar() {
     const { user } = useAuth();
     const { theme, setTheme } = useTheme();
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    // Avoid rendering on server / before hydration to prevent flash of the public navbar
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Don't show on dashboard, auth, or mail routes (projects and tasks are dashboard routes that SHOW the TopNavbar/Sidebar instead)
     const hideRoutes = ['/dashboard', '/auth', '/admin/auth', '/mail', '/projects', '/tasks', '/projects/create', '/projects/[id]'];
+
+    // If we're not mounted yet (server render / pre-hydration), don't render the public navbar.
+    if (!mounted) return null;
+
     if (hideRoutes.some(route => pathname?.startsWith(route))) {
         return null;
     }
