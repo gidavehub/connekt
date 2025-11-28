@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { X, BarChart3, List, Eye } from 'lucide-react';
 
-export type ModalType = 'project' | 'task' | 'team' | 'analytics' | null;
+export type ModalType = 'project' | 'task' | 'team' | 'analytics' | 'runningProjects' | 'runningTasks' | 'pendingTasks' | 'pendingPOT' | null;
 
 export interface DashboardModalContextType {
     isOpen: boolean;
@@ -51,8 +51,20 @@ export default function DashboardModal({ isOpen, type, data, onClose }: Dashboar
                 {/* Header */}
                 <div className="flex items-center justify-between p-8 border-b border-gray-100 dark:border-zinc-800 bg-gradient-to-r from-gray-50 to-white dark:from-zinc-900 dark:to-zinc-800">
                     <div className="flex-1">
-                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{data.name || data.title}</h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{data.status} • {data.date}</p>
+                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                            {type === 'runningProjects' && 'Running Projects'}
+                            {type === 'runningTasks' && 'Running Tasks'}
+                            {type === 'pendingTasks' && 'Pending Tasks'}
+                            {type === 'pendingPOT' && 'Pending Task POT'}
+                            {(type === 'project' || type === 'task') && (data.name || data.title)}
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {type === 'runningProjects' && `${data.count} projects currently in progress`}
+                            {type === 'runningTasks' && `${data.count} tasks actively being worked on`}
+                            {type === 'pendingTasks' && `${data.count} tasks awaiting action`}
+                            {type === 'pendingPOT' && `${data.count} proofs of task awaiting review`}
+                            {(type === 'project' || type === 'task') && `${data.status} • ${data.date}`}
+                        </p>
                     </div>
                     <div className="flex items-center gap-3">
                         {type === 'project' && (
@@ -66,18 +78,20 @@ export default function DashboardModal({ isOpen, type, data, onClose }: Dashboar
                     </div>
                 </div>
 
-                {/* Tab Navigation */}
-                <div className="flex gap-1 px-8 pt-6 border-b border-gray-100 dark:border-zinc-800">
-                    <button onClick={() => setViewMode('overview')} className={`flex items-center gap-2 px-4 py-3 font-medium transition-all ${viewMode === 'overview' ? 'text-[#008080] border-b-2 border-[#008080]' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
-                        <Eye size={18} /> Overview
-                    </button>
-                    <button onClick={() => setViewMode('stats')} className={`flex items-center gap-2 px-4 py-3 font-medium transition-all ${viewMode === 'stats' ? 'text-[#008080] border-b-2 border-[#008080]' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
-                        <BarChart3 size={18} /> Stats
-                    </button>
-                    <button onClick={() => setViewMode('list')} className={`flex items-center gap-2 px-4 py-3 font-medium transition-all ${viewMode === 'list' ? 'text-[#008080] border-b-2 border-[#008080]' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
-                        <List size={18} /> Details
-                    </button>
-                </div>
+                {/* Tab Navigation - Only for project modals */}
+                {type === 'project' && (
+                    <div className="flex gap-1 px-8 pt-6 border-b border-gray-100 dark:border-zinc-800">
+                        <button onClick={() => setViewMode('overview')} className={`flex items-center gap-2 px-4 py-3 font-medium transition-all ${viewMode === 'overview' ? 'text-[#008080] border-b-2 border-[#008080]' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+                            <Eye size={18} /> Overview
+                        </button>
+                        <button onClick={() => setViewMode('stats')} className={`flex items-center gap-2 px-4 py-3 font-medium transition-all ${viewMode === 'stats' ? 'text-[#008080] border-b-2 border-[#008080]' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+                            <BarChart3 size={18} /> Stats
+                        </button>
+                        <button onClick={() => setViewMode('list')} className={`flex items-center gap-2 px-4 py-3 font-medium transition-all ${viewMode === 'list' ? 'text-[#008080] border-b-2 border-[#008080]' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+                            <List size={18} /> Details
+                        </button>
+                    </div>
+                )}
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-8">
@@ -88,6 +102,11 @@ export default function DashboardModal({ isOpen, type, data, onClose }: Dashboar
                     {type === 'team' && <TeamView data={data} />}
                     {type === 'analytics' && <AnalyticsView data={data} />}
                     {type === 'task' && <TaskView data={data} />}
+
+                    {type === 'runningProjects' && <RunningProjectsView data={data} />}
+                    {type === 'runningTasks' && <RunningTasksView data={data} />}
+                    {type === 'pendingTasks' && <PendingTasksView data={data} />}
+                    {type === 'pendingPOT' && <PendingPOTView data={data} />}
                 </div>
             </div>
         </div>
@@ -314,6 +333,138 @@ function DashboardAssignManager({ projectId }: { projectId: string }) {
                     {loading ? 'Assigning...' : 'Assign Manager'}
                 </button>
                 {message && <p className={`text-sm text-center ${message.type === 'error' ? 'text-red-600' : 'text-green-600'}`}>{message.text}</p>}
+            </div>
+        </div>
+    );
+}
+
+function RunningProjectsView({ data }: { data: any }) {
+    const mockProjects = [
+        { id: 1, name: 'E-Commerce Platform', progress: 65, tasks: 24, team: 3 },
+        { id: 2, name: 'Mobile App Launch', progress: 45, tasks: 18, team: 2 },
+        { id: 3, name: 'Analytics Dashboard', progress: 80, tasks: 12, team: 2 },
+    ];
+
+    return (
+        <div className="space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Running Projects ({data.count})</h3>
+            <div className="space-y-3">
+                {mockProjects.map(proj => (
+                    <div key={proj.id} className="p-4 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700 hover:border-[#008080] dark:hover:border-teal-500 transition-colors cursor-pointer">
+                        <div className="flex items-start justify-between mb-3">
+                            <div>
+                                <h4 className="font-bold text-gray-900 dark:text-white">{proj.name}</h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{proj.tasks} tasks • {proj.team} team members</p>
+                            </div>
+                            <span className="text-sm font-bold text-[#008080]">{proj.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2">
+                            <div className="bg-[#008080] h-2 rounded-full" style={{ width: `${proj.progress}%` }}></div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function RunningTasksView({ data }: { data: any }) {
+    const mockTasks = [
+        { id: 1, title: 'Design Homepage', project: 'E-Commerce', assignee: 'Alice', dueDate: 'Dec 5', priority: 'high' },
+        { id: 2, title: 'Setup Database', project: 'Mobile App', assignee: 'Bob', dueDate: 'Dec 3', priority: 'high' },
+        { id: 3, title: 'API Integration', project: 'Analytics', assignee: 'Charlie', dueDate: 'Dec 8', priority: 'medium' },
+        { id: 4, title: 'UI Components', project: 'E-Commerce', assignee: 'Diana', dueDate: 'Dec 6', priority: 'medium' },
+    ];
+
+    return (
+        <div className="space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Running Tasks ({data.count})</h3>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-gray-200 dark:border-zinc-700">
+                            <th className="text-left py-3 px-4 font-bold text-gray-700 dark:text-gray-300">Title</th>
+                            <th className="text-left py-3 px-4 font-bold text-gray-700 dark:text-gray-300">Project</th>
+                            <th className="text-left py-3 px-4 font-bold text-gray-700 dark:text-gray-300">Assignee</th>
+                            <th className="text-left py-3 px-4 font-bold text-gray-700 dark:text-gray-300">Due Date</th>
+                            <th className="text-left py-3 px-4 font-bold text-gray-700 dark:text-gray-300">Priority</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {mockTasks.map(t => (
+                            <tr key={t.id} className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                <td className="py-3 px-4">{t.title}</td>
+                                <td className="py-3 px-4">{t.project}</td>
+                                <td className="py-3 px-4">{t.assignee}</td>
+                                <td className="py-3 px-4">{t.dueDate}</td>
+                                <td className="py-3 px-4">
+                                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${t.priority === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30'}`}>
+                                        {t.priority}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+function PendingTasksView({ data }: { data: any }) {
+    const mockTasks = [
+        { id: 1, title: 'Testing Phase', project: 'E-Commerce', assignee: 'Alice', dueDate: 'Dec 10', status: 'waiting' },
+        { id: 2, title: 'Documentation', project: 'Mobile App', assignee: 'Bob', dueDate: 'Dec 12', status: 'waiting' },
+        { id: 3, title: 'Security Audit', project: 'Analytics', assignee: 'Edward', dueDate: 'Dec 15', status: 'waiting' },
+        { id: 4, title: 'Performance Review', project: 'E-Commerce', assignee: 'Frank', dueDate: 'Dec 9', status: 'waiting' },
+    ];
+
+    return (
+        <div className="space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Pending Tasks ({data.count})</h3>
+            <div className="space-y-3">
+                {mockTasks.map(t => (
+                    <div key={t.id} className="p-4 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl border border-yellow-200 dark:border-yellow-700 hover:border-yellow-400 dark:hover:border-yellow-500 transition-colors cursor-pointer">
+                        <div className="flex items-start justify-between mb-2">
+                            <div>
+                                <h4 className="font-bold text-gray-900 dark:text-white">{t.title}</h4>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{t.project} • Assigned to {t.assignee}</p>
+                            </div>
+                            <span className="text-xs px-2 py-1 bg-yellow-200 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 rounded font-medium">Pending</span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Due: {t.dueDate}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function PendingPOTView({ data }: { data: any }) {
+    const mockPOTs = [
+        { id: 1, taskTitle: 'Design Homepage', project: 'E-Commerce', submittedBy: 'Alice', submittedDate: 'Nov 25', status: 'pending-review' },
+        { id: 2, taskTitle: 'Setup Database', project: 'Mobile App', submittedBy: 'Bob', submittedDate: 'Nov 24', status: 'pending-review' },
+        { id: 3, taskTitle: 'API Testing', project: 'Analytics', submittedBy: 'Charlie', submittedDate: 'Nov 23', status: 'pending-review' },
+        { id: 4, taskTitle: 'UI Components', project: 'E-Commerce', submittedBy: 'Diana', submittedDate: 'Nov 26', status: 'pending-review' },
+        { id: 5, taskTitle: 'Documentation Draft', project: 'Mobile App', submittedBy: 'Edward', submittedDate: 'Nov 27', status: 'pending-review' },
+    ];
+
+    return (
+        <div className="space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Pending Task POT (Proof of Task) ({data.count})</h3>
+            <div className="space-y-3">
+                {mockPOTs.map(pot => (
+                    <div key={pot.id} className="p-4 bg-orange-50 dark:bg-orange-900/10 rounded-xl border border-orange-200 dark:border-orange-700 hover:border-orange-400 dark:hover:border-orange-500 transition-colors cursor-pointer">
+                        <div className="flex items-start justify-between mb-2">
+                            <div>
+                                <h4 className="font-bold text-gray-900 dark:text-white">{pot.taskTitle}</h4>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{pot.project} • Proof submitted by {pot.submittedBy}</p>
+                            </div>
+                            <span className="text-xs px-2 py-1 bg-orange-200 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 rounded font-medium">Awaiting Review</span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Submitted: {pot.submittedDate}</p>
+                    </div>
+                ))}
             </div>
         </div>
     );
