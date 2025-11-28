@@ -15,8 +15,8 @@ export default function MainNavbar() {
     const { theme, setTheme } = useTheme();
     const [dropdownOpen, setDropdownOpen] = useState(false);
 
-    // Don't show on dashboard, auth, or mail routes
-    const hideRoutes = ['/dashboard', '/auth', '/admin/auth', '/mail', '/projects'];
+    // Don't show on dashboard, auth, or mail routes (projects and tasks are dashboard routes that SHOW the TopNavbar/Sidebar instead)
+    const hideRoutes = ['/dashboard', '/auth', '/admin/auth', '/mail', '/projects', '/tasks', '/projects/create', '/projects/[id]'];
     if (hideRoutes.some(route => pathname?.startsWith(route))) {
         return null;
     }

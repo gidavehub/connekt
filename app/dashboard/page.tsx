@@ -80,36 +80,36 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Running Projects */}
                 <button onClick={() => openModal('runningProjects', { count: stats.running, type: 'projects' })} className="text-left group">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-6 rounded-2xl border border-blue-200 dark:border-blue-700 hover:border-blue-400 dark:hover:border-blue-500 transition-all hover:shadow-lg cursor-pointer">
+                    <div className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 p-6 rounded-2xl border border-teal-200 dark:border-teal-700 hover:border-teal-400 dark:hover:border-teal-500 transition-all hover:shadow-lg hover:shadow-teal-500/20 cursor-pointer">
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Running Projects</p>
-                        <p className="text-4xl font-bold text-blue-600 mb-1">{stats.running}</p>
+                        <p className="text-4xl font-bold text-[#008080] mb-1">{stats.running}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-400">Click to view details</p>
                     </div>
                 </button>
 
                 {/* Running Tasks */}
                 <button onClick={() => openModal('runningTasks', { count: stats.runningTasks, type: 'tasks' })} className="text-left group">
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-6 rounded-2xl border border-green-200 dark:border-green-700 hover:border-green-400 dark:hover:border-green-500 transition-all hover:shadow-lg cursor-pointer">
+                    <div className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 p-6 rounded-2xl border border-teal-200 dark:border-teal-700 hover:border-teal-400 dark:hover:border-teal-500 transition-all hover:shadow-lg hover:shadow-teal-500/20 cursor-pointer">
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Running Tasks</p>
-                        <p className="text-4xl font-bold text-green-600 mb-1">{stats.runningTasks}</p>
+                        <p className="text-4xl font-bold text-[#008080] mb-1">{stats.runningTasks}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-400">Click to view details</p>
                     </div>
                 </button>
 
                 {/* Pending Tasks */}
                 <button onClick={() => openModal('pendingTasks', { count: stats.pendingTasks, type: 'tasks' })} className="text-left group">
-                    <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 p-6 rounded-2xl border border-yellow-200 dark:border-yellow-700 hover:border-yellow-400 dark:hover:border-yellow-500 transition-all hover:shadow-lg cursor-pointer">
+                    <div className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 p-6 rounded-2xl border border-teal-200 dark:border-teal-700 hover:border-teal-400 dark:hover:border-teal-500 transition-all hover:shadow-lg hover:shadow-teal-500/20 cursor-pointer">
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Pending Tasks</p>
-                        <p className="text-4xl font-bold text-yellow-600 mb-1">{stats.pendingTasks}</p>
+                        <p className="text-4xl font-bold text-[#008080] mb-1">{stats.pendingTasks}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-400">Click to view details</p>
                     </div>
                 </button>
 
                 {/* Pending Task POT */}
                 <button onClick={() => openModal('pendingPOT', { count: stats.pendingPOT, type: 'pot' })} className="text-left group">
-                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-6 rounded-2xl border border-orange-200 dark:border-orange-700 hover:border-orange-400 dark:hover:border-orange-500 transition-all hover:shadow-lg cursor-pointer">
+                    <div className="bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-900/20 dark:to-teal-800/20 p-6 rounded-2xl border border-teal-200 dark:border-teal-700 hover:border-teal-400 dark:hover:border-teal-500 transition-all hover:shadow-lg hover:shadow-teal-500/20 cursor-pointer">
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Pending Task POT</p>
-                        <p className="text-4xl font-bold text-orange-600 mb-1">{stats.pendingPOT}</p>
+                        <p className="text-4xl font-bold text-[#008080] mb-1">{stats.pendingPOT}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-400">Click to view details</p>
                     </div>
                 </button>
