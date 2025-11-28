@@ -94,13 +94,58 @@ export default function ProjectList() {
                             </div>
                             <div className="col-span-1 bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg">
                                 <h5 className="font-bold mb-2">Actions</h5>
-                                <button className="w-full py-2 px-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm mb-2">Assign Supervisor</button>
-                                <button className="w-full py-2 px-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm">Submit Proof</button>
+                                <AssignSupervisor projectId={selected.id} />
+                                <div className="mt-2">
+                                    <button onClick={() => window.location.href = `/projects/${selected.id}`} className="w-full py-2 px-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg text-sm">Open Project</button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+function AssignSupervisor({ projectId }: { projectId: string }) {
+    const [managerId, setManagerId] = (useState as any)('');
+    const [managerType, setManagerType] = (useState as any)('user');
+    const [loading, setLoading] = (useState as any)(false);
+    const [message, setMessage] = (useState as any)(null);
+
+    const submit = async () => {
+        setLoading(true);
+        setMessage(null);
+        try {
+            const res = await fetch(`/api/projects/${projectId}/assign-manager`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ managerId, managerType, transferredBy: managerId })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || 'Failed');
+            setMessage({ type: 'success', text: 'Manager assigned' });
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div>
+            <label className="text-xs font-medium text-gray-500">Manager ID</label>
+            <input value={managerId} onChange={(e) => setManagerId(e.target.value)} className="w-full mt-1 px-3 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-sm" placeholder="uid or username" />
+            <div className="flex gap-2 mt-2">
+                <select value={managerType} onChange={(e) => setManagerType(e.target.value)} className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 text-sm">
+                    <option value="user">User</option>
+                    <option value="external">External</option>
+                </select>
+                <button onClick={submit} disabled={loading} className="px-3 py-2 bg-[#008080] text-white rounded-lg text-sm">
+                    {loading ? '...' : 'Assign'}
+                </button>
+            </div>
+            {message && <p className={`mt-2 text-sm ${message.type === 'error' ? 'text-red-500' : 'text-green-500'}`}>{message.text}</p>}
         </div>
     );
 }

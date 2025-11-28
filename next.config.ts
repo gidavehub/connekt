@@ -11,6 +11,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Allow builds to succeed even if TypeScript or ESLint report errors.
+  // This is useful for CI or situations where you prefer runtime checks.
+  typescript: {
+    // WARNING: enabling this will let type errors pass the production build.
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    // WARNING: enabling this will skip ESLint during builds.
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

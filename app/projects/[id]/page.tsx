@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { useParams } from 'next/navigation';
 import { ProjectService, Task } from '@/lib/services/project-service';
 import { Loader2, Plus, Calendar, DollarSign, Clock, CheckCircle2, Circle } from 'lucide-react';
@@ -14,6 +15,12 @@ export default function ProjectWorkspace() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [proofOpenFor, setProofOpenFor] = useState<string | null>(null);
+    const [proofType, setProofType] = useState<'screenshot' | 'video' | 'link' | 'other'>('screenshot');
+    const [proofUrl, setProofUrl] = useState('');
+    const [proofLoading, setProofLoading] = useState(false);
+    const [proofMessage, setProofMessage] = useState<string | null>(null);
+    const { user } = useAuth();
 
     const loadData = async () => {
         try {
@@ -120,9 +127,14 @@ export default function ProjectWorkspace() {
                                                 </button>
                                             )}
                                             {col.id !== 'done' && (
-                                                <button onClick={() => handleStatusChange(task.id!, 'done')} className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded" title="Move to Done">
-                                                    <CheckCircle2 size={14} />
-                                                </button>
+                                                <>
+                                                    <button onClick={() => handleStatusChange(task.id!, 'done')} className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded" title="Move to Done">
+                                                        <CheckCircle2 size={14} />
+                                                    </button>
+                                                    <button onClick={() => { setProofOpenFor(task.id!); setProofType('screenshot'); setProofUrl(''); setProofMessage(null); }} className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded" title="Submit Proof">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553 2.276A2 2 0 0120 15.118V18a2 2 0 01-2 2H6a2 2 0 01-2-2v-2.882a2 2 0 01.447-1.842L9 10m6 0V6a3 3 0 10-6 0v4" /></svg>
+                                                    </button>
+                                                </>
                                             )}
                                         </div>
                                     </div>
@@ -139,6 +151,59 @@ export default function ProjectWorkspace() {
                 onClose={() => setIsModalOpen(false)}
                 onTaskCreated={loadData}
             />
+
+            {/* Proof Submission Modal */}
+            {proofOpenFor && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-2xl overflow-hidden">
+                        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-zinc-800">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Submit Proof</h3>
+                            <button onClick={() => setProofOpenFor(null)} className="text-gray-400 hover:text-gray-600"><svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
+                                <select value={proofType} onChange={(e) => setProofType(e.target.value as any)} className="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-transparent outline-none">
+                                    <option value="screenshot">Screenshot</option>
+                                    <option value="video">Video</option>
+                                    <option value="link">Link</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL</label>
+                                <input value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} className="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-transparent outline-none" placeholder="https://..." />
+                            </div>
+
+                            {proofMessage && <p className="text-sm text-green-500">{proofMessage}</p>}
+
+                            <div className="flex justify-end gap-2">
+                                <button onClick={() => setProofOpenFor(null)} className="px-4 py-2 rounded-lg bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700">Cancel</button>
+                                <button disabled={proofLoading} onClick={async () => {
+                                    if (!proofUrl) return setProofMessage('Please provide a url');
+                                    setProofLoading(true);
+                                    try {
+                                        const res = await fetch(`/api/tasks/${proofOpenFor}/proofs`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ submitterId: user?.uid, type: proofType, url: proofUrl })
+                                        });
+                                        const data = await res.json();
+                                        if (!res.ok) throw new Error(data?.error || 'Submission failed');
+                                        setProofMessage('Submitted — pending review');
+                                        setTimeout(() => { setProofOpenFor(null); loadData(); }, 900);
+                                    } catch (err: any) {
+                                        setProofMessage(err.message);
+                                    } finally {
+                                        setProofLoading(false);
+                                    }
+                                }} className="px-4 py-2 rounded-lg bg-[#008080] text-white">{proofLoading ? '...' : 'Submit'}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
