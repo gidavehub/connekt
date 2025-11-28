@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { X, BarChart3, List, Eye } from 'lucide-react';
 
@@ -26,16 +27,21 @@ interface DashboardModalProps {
 export default function DashboardModal({ isOpen, type, data, onClose }: DashboardModalProps) {
     const router = useRouter();
     const [viewMode, setViewMode] = useState<'overview' | 'stats' | 'list'>('overview');
+    const [mounted, setMounted] = useState(false);
 
-    if (!isOpen || !type || !data) return null;
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!isOpen || !type || !data || !mounted) return null;
 
     const goToRoute = (route: string) => {
         router.push(route);
         onClose();
     };
 
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    const modalContent = (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
             <div
                 className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col w-full h-full max-w-6xl max-h-[80vh]"
                 onClick={(e) => e.stopPropagation()}
@@ -86,6 +92,8 @@ export default function DashboardModal({ isOpen, type, data, onClose }: Dashboar
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 }
 
 function ProjectOverview({ project }: { project: any }) {
