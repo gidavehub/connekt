@@ -9,7 +9,7 @@ import { signOut } from 'firebase/auth';
 
 const menuItems = [
     { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard' },
-    { icon: CheckSquare, label: 'Tasks', href: '/projects', badge: '12+' },
+    { icon: CheckSquare, label: 'Projects', href: '/projects', badge: '12+' },
     { icon: Calendar, label: 'Calendar', href: '/calendar' },
     { icon: BarChart2, label: 'Analytics', href: '/analytics' },
     { icon: Users, label: 'Team', href: '/agency' },

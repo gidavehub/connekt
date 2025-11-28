@@ -15,7 +15,9 @@ import {
     limit,
     DocumentData,
     Timestamp,
-    increment
+    increment,
+    arrayUnion,
+    arrayRemove
 } from 'firebase/firestore';
 
 // --- Types (Exported for reuse) ---
@@ -54,9 +56,36 @@ export interface Task {
     description: string;
     status: 'todo' | 'in-progress' | 'done' | 'paid'; // Added 'paid'
     priority: 'low' | 'medium' | 'high';
-    assignee?: string; // Username
+    assignee?: string; // Username (kept for compatibility)
+    assigneeId?: string; // UID of assignee
     value?: number; // For milestone payments
+    timeline?: { start?: string; due?: string };
+    reassignable?: boolean; // Can Owners/Supervisors reassign this task
+    proofRequired?: boolean; // Does completion require proof submission?
     createdAt: any;
+}
+
+export interface Workspace {
+    id?: string;
+    ownerId: string;
+    name: string;
+    plan: 'free' | 'pro';
+    members?: string[]; // uids
+    createdAt: any;
+}
+
+export interface TaskProof {
+    id?: string;
+    taskId: string;
+    submitterId: string;
+    type: 'screenshot' | 'video' | 'link' | 'other';
+    url: string;
+    metadata?: any;
+    status: 'pending' | 'approved' | 'rejected';
+    reviewerId?: string;
+    reviewComment?: string;
+    submittedAt: any;
+    reviewedAt?: any;
 }
 
 export interface Job {
@@ -183,6 +212,94 @@ export const FirestoreService = {
 
     async deleteTask(taskId: string) {
         await deleteDoc(doc(db, 'tasks', taskId));
+    },
+
+    // ==========================================
+    // WORKSPACES & ADVANCED TASK FLOWS
+    // ==========================================
+
+    async createWorkspace(ownerId: string, data: Omit<Workspace, 'id' | 'createdAt' | 'ownerId'>) {
+        return await addDoc(collection(db, 'workspaces'), {
+            ownerId,
+            ...data,
+            members: [ownerId],
+            createdAt: serverTimestamp()
+        });
+    },
+
+    async getWorkspace(workspaceId: string) {
+        const snap = await getDoc(doc(db, 'workspaces', workspaceId));
+        return snap.exists() ? ({ id: snap.id, ...snap.data() } as Workspace) : null;
+    },
+
+    async addWorkspaceMember(workspaceId: string, uid: string) {
+        const wsRef = doc(db, 'workspaces', workspaceId);
+        const snap = await getDoc(wsRef);
+        if (!snap.exists()) throw new Error('Workspace not found');
+        await updateDoc(wsRef, { members: arrayUnion(uid) });
+    },
+
+    async removeWorkspaceMember(workspaceId: string, uid: string) {
+        const wsRef = doc(db, 'workspaces', workspaceId);
+        const snap = await getDoc(wsRef);
+        if (!snap.exists()) throw new Error('Workspace not found');
+        await updateDoc(wsRef, { members: arrayRemove(uid) });
+    },
+
+    // Submit proof for a task (stored in subcollection tasks/{taskId}/proofs)
+    async submitTaskProof(taskId: string, proof: Omit<TaskProof, 'id' | 'submittedAt' | 'status'>) {
+        return await addDoc(collection(db, 'tasks', taskId, 'proofs'), {
+            ...proof,
+            status: 'pending',
+            submittedAt: serverTimestamp()
+        });
+    },
+
+    async getTaskProofs(taskId: string) {
+        const q = query(collection(db, 'tasks', taskId, 'proofs'), orderBy('submittedAt', 'desc'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() } as TaskProof));
+    },
+
+    // Review a proof: approve or reject
+    async reviewTaskProof(taskId: string, proofId: string, reviewerId: string, approved: boolean, comment?: string) {
+        const proofRef = doc(db, 'tasks', taskId, 'proofs', proofId);
+        await updateDoc(proofRef, {
+            status: approved ? 'approved' : 'rejected',
+            reviewerId,
+            reviewComment: comment || null,
+            reviewedAt: serverTimestamp()
+        });
+
+        // If approved, optionally mark task as done (Supervisor action)
+        if (approved) {
+            await updateDoc(doc(db, 'tasks', taskId), { status: 'done', validatedBy: reviewerId });
+        }
+    },
+
+    // Reassign a task and log the reassignment in a subcollection
+    async reassignTask(taskId: string, newAssigneeId: string, performedBy: string) {
+        const taskRef = doc(db, 'tasks', taskId);
+        const snap = await getDoc(taskRef);
+        if (!snap.exists()) throw new Error('Task not found');
+        const old = snap.data() as any;
+        await updateDoc(taskRef, { assigneeId: newAssigneeId });
+        await addDoc(collection(db, 'tasks', taskId, 'reassignments'), {
+            from: old.assigneeId || old.assignee || null,
+            to: newAssigneeId,
+            by: performedBy,
+            at: serverTimestamp()
+        });
+    },
+
+    // Assign a project to a manager (internal or external)
+    async assignProjectManager(projectId: string, managerId: string, managerType: 'user' | 'external', transferredBy: string) {
+        await updateDoc(doc(db, 'projects', projectId), {
+            managerId,
+            managerType,
+            transferredAt: serverTimestamp(),
+            transferredBy
+        });
     },
 
     // ==========================================

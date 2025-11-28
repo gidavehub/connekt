@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Utility checks
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Workspaces
+    match /workspaces/{workspaceId} {
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+
+      allow read: if signedIn() && (
+        resource.data.ownerId == request.auth.uid ||
+        (resource.data.members != null && request.auth.uid in resource.data.members) ||
+        isAdmin()
+      );
+
+      allow update, delete: if signedIn() && (
+        resource.data.ownerId == request.auth.uid || isAdmin()
+      );
+    }
+
+    // Projects
+    match /projects/{projectId} {
+      allow create: if signedIn() && (request.resource.data.ownerId == request.auth.uid || isAdmin());
+
+      allow read: if signedIn() && (
+        resource.data.ownerId == request.auth.uid ||
+        (resource.data.members != null && request.auth.uid in resource.data.members) ||
+        (resource.data.workspaceId != null && exists(/databases/$(database)/documents/workspaces/$(resource.data.workspaceId)) && request.auth.uid in get(/databases/$(database)/documents/workspaces/$(resource.data.workspaceId)).data.members) ||
+        isAdmin()
+      );
+
+      // Only project owner / manager / admin can update core project fields
+      allow update: if signedIn() && (
+        resource.data.ownerId == request.auth.uid ||
+        (resource.data.managerId != null && resource.data.managerId == request.auth.uid) ||
+        isAdmin()
+      );
+
+      allow delete: if signedIn() && (resource.data.ownerId == request.auth.uid || isAdmin());
+
+      // Subcollections (tasks) access governed in tasks rules below
+    }
+
+    // Tasks
+    match /tasks/{taskId} {
+      allow create: if signedIn() && (
+        request.resource.data.assigneeId == request.auth.uid || request.resource.data.ownerId == request.auth.uid || isAdmin()
+      );
+
+      allow read: if signedIn() && (
+        resource.data.assigneeId == request.auth.uid ||
+        resource.data.ownerId == request.auth.uid ||
+        (resource.data.projectId != null && exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) && (
+          request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.members ||
+          get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerId == request.auth.uid
+        )) ||
+        isAdmin()
+      );
+
+      // Allow assignee to update non-authoritative fields (status/progress) and owners/managers to update everything
+      allow update: if signedIn() && (
+        resource.data.assigneeId == request.auth.uid ||
+        resource.data.ownerId == request.auth.uid ||
+        (resource.data.projectId != null && exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) && get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.managerId == request.auth.uid) ||
+        isAdmin()
+      );
+
+      allow delete: if signedIn() && (
+        resource.data.ownerId == request.auth.uid || isAdmin()
+      );
+
+      // Proofs subcollection
+      match /tasks/{taskId}/proofs/{proofId} {
+        allow create: if signedIn() && (
+          request.resource.data.submitterId == request.auth.uid ||
+          (resource.data != null && resource.data.assigneeId == request.auth.uid)
+        );
+
+        allow read: if signedIn() && (
+          resource.data.submitterId == request.auth.uid ||
+          (resource.data != null && resource.data.reviewerId == request.auth.uid) ||
+          (resource.data != null && exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) && request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.members) ||
+          isAdmin()
+        );
+
+        // Only project owner / supervisors / manager or admin can review proofs
+        allow update: if signedIn() && (
+          exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) && (
+            get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerId == request.auth.uid ||
+            (get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.managerId != null && get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.managerId == request.auth.uid) ||
+            isAdmin()
+          )
+        );
+
+        allow delete: if signedIn() && isAdmin();
+      }
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if signedIn() && request.auth.uid == userId;
+      allow update: if signedIn() && request.auth.uid == userId;
+      allow delete: if signedIn() && isAdmin();
+    }
+
+    // Fallback: deny by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
