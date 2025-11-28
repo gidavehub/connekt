@@ -22,6 +22,56 @@ export default function ProjectWorkspace() {
     const [proofMessage, setProofMessage] = useState<string | null>(null);
     const { user } = useAuth();
 
+    const [proofList, setProofList] = useState<any[]>([]);
+    const [proofTaskId, setProofTaskId] = useState<string | null>(null);
+    const [reviewLoading, setReviewLoading] = useState(false);
+
+    const isSupervisorOrOwner = (project: any) => {
+        if (!user || !project) return false;
+        if (project.ownerId === user.uid) return true;
+        if (project.managerId && project.managerId === user.uid) return true;
+        return false;
+    };
+
+    const loadProofs = async (taskId: string) => {
+        try {
+            const res = await fetch(`/api/tasks/${taskId}/proofs`);
+            const data = await res.json();
+            if (res.ok) {
+                setProofList(data.proofs || []);
+                setProofTaskId(taskId);
+            } else {
+                console.error('Failed to load proofs', data);
+                setProofList([]);
+                setProofTaskId(taskId);
+            }
+        } catch (err) {
+            console.error(err);
+            setProofList([]);
+            setProofTaskId(taskId);
+        }
+    };
+
+    const reviewProof = async (proofId: string, approved: boolean, comment?: string) => {
+        if (!proofTaskId || !user) return;
+        setReviewLoading(true);
+        try {
+            const res = await fetch(`/api/tasks/${proofTaskId}/proofs/${proofId}/review`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reviewerId: user.uid, approved, comment })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || 'Review failed');
+            await loadProofs(proofTaskId);
+            await loadData();
+        } catch (err: any) {
+            console.error(err);
+        } finally {
+            setReviewLoading(false);
+        }
+    };
+
     const loadData = async () => {
         try {
             const [p, t] = await Promise.all([
@@ -64,6 +114,37 @@ export default function ProjectWorkspace() {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{project.title}</h1>
                         <p className="text-gray-500 max-w-2xl">{project.description}</p>
+                        <div className="mt-3 flex items-center gap-4 text-sm">
+                            {project.managerId ? (
+                                <div className="text-sm text-gray-700 dark:text-gray-300">Manager: <span className="font-bold">{project.managerId}</span></div>
+                            ) : (
+                                <div className="text-sm text-gray-400">No manager assigned</div>
+                            )}
+                            {project.ownerId === user?.uid && (
+                                <button onClick={async () => {
+                                    const m = window.prompt('Enter manager UID or username');
+                                    if (!m) return;
+                                    try {
+                                        await fetch(`/api/projects/${projectId}/assign-manager`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ managerId: m, managerType: 'user', transferredBy: user.uid })
+                                        });
+                                        loadData();
+                                    } catch (err) {
+                                        console.error(err);
+                                    }
+                                }} className="px-3 py-1 rounded-lg bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-sm">Assign Manager</button>
+                            )}
+                        </div>
+                        <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                            <span className="font-bold mr-2">Members:</span>
+                            {project.members && project.members.length > 0 ? (
+                                <span>{project.members.join(', ')}</span>
+                            ) : (
+                                <span className="text-gray-400">No members added</span>
+                            )}
+                        </div>
                     </div>
                     <button
                         onClick={() => setIsModalOpen(true)}
@@ -134,6 +215,9 @@ export default function ProjectWorkspace() {
                                                     <button onClick={() => { setProofOpenFor(task.id!); setProofType('screenshot'); setProofUrl(''); setProofMessage(null); }} className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded" title="Submit Proof">
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553 2.276A2 2 0 0120 15.118V18a2 2 0 01-2 2H6a2 2 0 01-2-2v-2.882a2 2 0 01.447-1.842L9 10m6 0V6a3 3 0 10-6 0v4" /></svg>
                                                     </button>
+                                                    <button onClick={async () => { await loadProofs(task.id!); setProofOpenFor(task.id!); }} className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded" title="View Proofs">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5a2 2 0 012-2h14a2 2 0 012 2v11a2 2 0 01-2 2H9l-6 3V5z"/></svg>
+                                                    </button>
                                                 </>
                                             )}
                                         </div>
@@ -155,53 +239,81 @@ export default function ProjectWorkspace() {
             {/* Proof Submission Modal */}
             {proofOpenFor && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-2xl overflow-hidden">
-                        <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-zinc-800">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Submit Proof</h3>
-                            <button onClick={() => setProofOpenFor(null)} className="text-gray-400 hover:text-gray-600"><svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg></button>
+                    <div className="bg-white dark:bg-zinc-900 w-full max-w-3xl rounded-2xl border border-gray-100 dark:border-zinc-800 shadow-2xl overflow-hidden">
+                            <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-zinc-800">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{proofTaskId ? `Proofs for task ${proofTaskId}` : 'Submit Proof'}</h3>
+                                <button onClick={() => { setProofOpenFor(null); setProofList([]); setProofTaskId(null); }} className="text-gray-400 hover:text-gray-600"><svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg></button>
+                            </div>
+                            <div className="p-6">
+                                {proofTaskId && proofList.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {proofList.map(p => (
+                                            <div key={p.id} className="p-4 bg-gray-50 dark:bg-zinc-800 rounded-lg border border-gray-100 dark:border-zinc-700">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <div className="text-sm font-bold">{p.type} <span className="text-xs font-normal text-gray-500">by {p.submitterId}</span></div>
+                                                        <a className="text-xs text-[#008080] block" href={p.url} target="_blank" rel="noreferrer">Open Proof</a>
+                                                        <div className="text-xs text-gray-400 mt-1">Status: {p.status}</div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {isSupervisorOrOwner(project) && p.status === 'pending' && (
+                                                            <>
+                                                                <button disabled={reviewLoading} onClick={() => reviewProof(p.id, true)} className="px-3 py-1 rounded-lg bg-green-600 text-white text-sm">Approve</button>
+                                                                <button disabled={reviewLoading} onClick={() => reviewProof(p.id, false, 'Rejected by reviewer')} className="px-3 py-1 rounded-lg bg-red-600 text-white text-sm">Reject</button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-4">
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
+                                                <select value={proofType} onChange={(e) => setProofType(e.target.value as any)} className="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-transparent outline-none">
+                                                    <option value="screenshot">Screenshot</option>
+                                                    <option value="video">Video</option>
+                                                    <option value="link">Link</option>
+                                                    <option value="other">Other</option>
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL</label>
+                                                <input value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} className="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-transparent outline-none" placeholder="https://..." />
+                                            </div>
+
+                                            {proofMessage && <p className="text-sm text-green-500">{proofMessage}</p>}
+
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => { setProofOpenFor(null); setProofList([]); setProofTaskId(null); }} className="px-4 py-2 rounded-lg bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700">Cancel</button>
+                                                <button disabled={proofLoading} onClick={async () => {
+                                                    if (!proofUrl) return setProofMessage('Please provide a url');
+                                                    setProofLoading(true);
+                                                    try {
+                                                        const res = await fetch(`/api/tasks/${proofOpenFor}/proofs`, {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ submitterId: user?.uid, type: proofType, url: proofUrl })
+                                                        });
+                                                        const data = await res.json();
+                                                        if (!res.ok) throw new Error(data?.error || 'Submission failed');
+                                                        setProofMessage('Submitted — pending review');
+                                                        setTimeout(() => { setProofOpenFor(null); loadData(); }, 900);
+                                                    } catch (err: any) {
+                                                        setProofMessage(err.message);
+                                                    } finally {
+                                                        setProofLoading(false);
+                                                    }
+                                                }} className="px-4 py-2 rounded-lg bg-[#008080] text-white">{proofLoading ? '...' : 'Submit'}</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
-                                <select value={proofType} onChange={(e) => setProofType(e.target.value as any)} className="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-transparent outline-none">
-                                    <option value="screenshot">Screenshot</option>
-                                    <option value="video">Video</option>
-                                    <option value="link">Link</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL</label>
-                                <input value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} className="w-full px-4 py-2 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-transparent outline-none" placeholder="https://..." />
-                            </div>
-
-                            {proofMessage && <p className="text-sm text-green-500">{proofMessage}</p>}
-
-                            <div className="flex justify-end gap-2">
-                                <button onClick={() => setProofOpenFor(null)} className="px-4 py-2 rounded-lg bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700">Cancel</button>
-                                <button disabled={proofLoading} onClick={async () => {
-                                    if (!proofUrl) return setProofMessage('Please provide a url');
-                                    setProofLoading(true);
-                                    try {
-                                        const res = await fetch(`/api/tasks/${proofOpenFor}/proofs`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ submitterId: user?.uid, type: proofType, url: proofUrl })
-                                        });
-                                        const data = await res.json();
-                                        if (!res.ok) throw new Error(data?.error || 'Submission failed');
-                                        setProofMessage('Submitted — pending review');
-                                        setTimeout(() => { setProofOpenFor(null); loadData(); }, 900);
-                                    } catch (err: any) {
-                                        setProofMessage(err.message);
-                                    } finally {
-                                        setProofLoading(false);
-                                    }
-                                }} className="px-4 py-2 rounded-lg bg-[#008080] text-white">{proofLoading ? '...' : 'Submit'}</button>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             )}
         </div>
