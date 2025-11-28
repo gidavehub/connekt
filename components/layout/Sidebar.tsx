@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, CheckSquare, Calendar, BarChart2, Users, Settings, HelpCircle, LogOut, Download } from 'lucide-react';
+import { LayoutGrid, CheckSquare, Calendar, BarChart2, Users, Settings, HelpCircle, LogOut, Download, ListTodo } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -10,6 +10,7 @@ import { signOut } from 'firebase/auth';
 const menuItems = [
     { icon: LayoutGrid, label: 'Dashboard', href: '/dashboard' },
     { icon: CheckSquare, label: 'Projects', href: '/projects', badge: '12+' },
+    { icon: ListTodo, label: 'Tasks', href: '/tasks', badge: '32' },
     { icon: Calendar, label: 'Calendar', href: '/calendar' },
     { icon: BarChart2, label: 'Analytics', href: '/analytics' },
     { icon: Users, label: 'Team', href: '/agency' },
